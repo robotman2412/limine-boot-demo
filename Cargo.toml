@@ -1,0 +1,18 @@
+[package]
+name = "positron"
+version = "0.1.0"
+edition = "2024"
+
+[profile.dev]
+panic = "abort"
+lto = false
+
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.release]
+panic = "abort"
+opt-level = 2
+
+[dependencies]
+limine = "0.5.0"

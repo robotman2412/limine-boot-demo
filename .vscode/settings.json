@@ -1,0 +1,22 @@
+{
+    "editor.formatOnSave": true,
+    "rust-analyzer.cargo.noDefaultFeatures": true,
+    "rust-analyzer.cargo.features": [],
+    "rust-analyzer.cargo.target": "riscv64imac-unknown-none-elf",
+    "rust-analyzer.check.allTargets": false,
+    "rust-analyzer.check.extraArgs": [
+        "--target",
+        "riscv64imac-unknown-none-elf",
+    ],
+    "_x86": {
+        "rust-analyzer.cargo.target": "x86_64-unknown-linux-gnu",
+        "rust-analyzer.check.allTargets": false,
+        "rust-analyzer.check.extraArgs": [
+            "--target",
+            "x86_64-unknown-linux-gnu",
+        ],
+    },
+    "rust-analyzer.cargo.extraEnv": {
+        "RUSTFLAGS": "-C force-frame-pointers",
+    },
+}

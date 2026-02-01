@@ -1,0 +1,15 @@
+[build]
+rustflags = [
+    "-C",
+    "force-frame-pointers",
+    "-C",
+    "link-arg=-Tmisc/ld/linker_riscv64.ld",
+    "-C",
+    "link-arg=--gc-sections",
+    "-C",
+    "codegen-units=1",
+]
+target = "misc/rust/kernel_riscv64.json"
+
+[unstable]
+build-std = ["core", "alloc"]
