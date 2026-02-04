@@ -126,6 +126,7 @@ impl Slab {
             let obj_index = i * usize::BITS as usize + lsb as usize;
             let ptr = self as *mut Self as *mut ();
 
+            self.free -= 1;
             return unsafe { ptr.byte_add(obj_index << obj_size_exp) };
         }
 
@@ -156,6 +157,7 @@ impl Slab {
             self as *mut Self as usize
         );
         bitmap[i] &= !mask;
+        self.free += 1;
     }
 }
 

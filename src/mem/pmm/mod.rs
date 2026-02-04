@@ -252,3 +252,19 @@ pub unsafe fn deallocate(ppn: PPN, order: u8) {
     }
     FREE_PAGES.fetch_add(count, Ordering::Relaxed);
 }
+
+pub fn total_memory() -> usize {
+    TOTAL_PAGES.load(Ordering::Relaxed) * PAGE_SIZE
+}
+
+pub fn free_memory() -> usize {
+    FREE_PAGES.load(Ordering::Relaxed) * PAGE_SIZE
+}
+
+pub fn kernel_memory() -> usize {
+    KERNEL_PAGES.load(Ordering::Relaxed) * PAGE_SIZE
+}
+
+pub fn user_memory() -> usize {
+    USER_PAGES.load(Ordering::Relaxed) * PAGE_SIZE
+}

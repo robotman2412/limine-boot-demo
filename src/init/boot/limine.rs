@@ -80,14 +80,23 @@ pub unsafe fn early_init() {
             lowest_paddr..highest_paddr,
         );
 
+        let mut reclaimable = 0;
         for &region in memmap_resp.entries() {
             if addr_eq(largest_region, region) {
                 continue;
             }
             if region.entry_type == EntryType::USABLE {
                 pmm::mark_usable(region.base as usize..(region.base + region.length) as usize);
+            } else if region.entry_type == EntryType::BOOTLOADER_RECLAIMABLE {
+                reclaimable += region.length as usize;
             }
         }
+        logk!(
+            LogLevel::Info,
+            "PMM initialized, total: {} MiB including {} MiB reclaimable",
+            pmm::total_memory() / 1024 / 1024,
+            reclaimable / 1024 / 1024
+        );
 
         vmm::init();
     }
@@ -95,8 +104,8 @@ pub unsafe fn early_init() {
     // Read the DTB.
     if let Some(fdt) = DTB_REQ.get_response() {
         unsafe {
-            let dtb = Dtb::parse(fdt.dtb_ptr());
-            logk!(LogLevel::Debug, "Device tree:\n{}", dtb.root());
+            let dtb = Dtb::parse(fdt.dtb_ptr() as _);
+            logk!(LogLevel::Debug, "Device tree:\n{:?}", dtb.root());
             dtb::DTB = Some(dtb);
         }
     }
