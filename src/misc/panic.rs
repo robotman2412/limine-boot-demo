@@ -19,5 +19,9 @@ fn panic_handler(info: &PanicInfo) -> ! {
     } else {
         logk!(LogLevel::Fatal, "{}", info.message());
     }
+    panic_poweroff();
+}
+
+fn panic_poweroff() -> ! {
     loop {}
 }

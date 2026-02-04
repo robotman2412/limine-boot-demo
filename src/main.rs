@@ -8,7 +8,17 @@
 #![feature(linkage)]
 #![feature(macro_metavar_expr_concat)]
 #![feature(formatting_options)]
+#![feature(allocator_api)]
+#![feature(try_blocks)]
+#![feature(const_trait_impl)]
+#![feature(const_destruct)]
+#![feature(maybe_uninit_array_assume_init)]
+#![feature(ptr_metadata)]
 
+extern crate alloc;
+extern crate core;
+
+pub mod device;
 pub mod init;
 pub mod mem;
 pub mod misc;

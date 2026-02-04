@@ -8,6 +8,17 @@ use core::ffi::c_int;
 #[linkage = "weak"]
 #[inline(never)]
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn strlen(str: *const u8) -> usize {
+    let mut cur = str;
+    while cur.read_volatile() != 0 {
+        cur = cur.add(1);
+    }
+    cur.offset_from_unsigned(str)
+}
+
+#[linkage = "weak"]
+#[inline(never)]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn memset(dest: *mut u8, val: c_int, size: usize) -> *mut u8 {
     let val = val as u8;
     for i in 0..size {

@@ -7,10 +7,12 @@ use core::arch::naked_asm;
 pub mod csr;
 pub mod irq;
 pub mod sbi;
+pub mod timer;
 
 pub type PhysCpuID = usize;
 
 pub const NAME: &str = "riscv64";
+pub const NAME_BLANK: &str = "=======";
 
 /// The kernel entrypoint.
 #[unsafe(no_mangle)]
@@ -38,11 +40,12 @@ fn sbi_dbcn_log_write(msg: &str) {
     }
 }
 
-fn early_init() -> ! {
+#[allow(unsafe_op_in_unsafe_fn)]
+unsafe fn early_init() -> ! {
     if sbi::dbcn::probe() {
-        unsafe { LOG_WRITE = sbi_dbcn_log_write };
+        LOG_WRITE = sbi_dbcn_log_write;
     } else {
-        unsafe { LOG_WRITE = sbi_legacy_log_write };
+        LOG_WRITE = sbi_legacy_log_write;
     }
     main();
 }

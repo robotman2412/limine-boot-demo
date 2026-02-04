@@ -16,10 +16,14 @@ image: sysroot
 		'EFI partition'  boot build/image/efi.fatfs 0x0700 \
 		'Root partition' root build/image/root.e2fs 0x8300
 
+.PHONY: gdb
+gdb:
+	$(CROSS_COMPILE)gdb -x misc/gdbinit target/kernel_riscv64/debug/positron
+
 .PHONY: qemu
 qemu: build/cache/OVMF_RISCV64.fd image
 	$(QEMU) -s \
-		-M virt,acpi=off -cpu rv64,sv48=false -smp 4 -m 1G \
+		-M virt,acpi=off -cpu rv64,sv48=false -smp 1 -m 256M \
 		-device pcie-root-port,bus=pcie.0,id=pcisw0 \
 		-device qemu-xhci,bus=pcisw0 -device usb-kbd \
 		-drive if=pflash,unit=0,format=raw,file=build/cache/OVMF_RISCV64.fd \
