@@ -12,8 +12,8 @@ pub unsafe extern "C" fn main() -> ! {
     logk!(LogLevel::Info, "Positron {} starting", arch::NAME);
     logk!(LogLevel::Info, "========={}=========", arch::NAME_BLANK);
 
-    // PMM, kernel heap, parse FDT into device tree.
     unsafe {
+        // PMM, kernel heap, parse FDT into device tree.
         boot::early_init();
     }
 

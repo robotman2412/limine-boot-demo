@@ -12,7 +12,6 @@ use crate::{
     device::dtb::{self, dtb::Dtb},
     logk,
     mem::{pmm, vmm},
-    writek,
 };
 
 #[unsafe(link_section = ".requests")]
@@ -23,8 +22,6 @@ static MEMMAP_REQ: MemoryMapRequest = MemoryMapRequest::new();
 static DTB_REQ: DeviceTreeBlobRequest = DeviceTreeBlobRequest::new();
 
 pub unsafe fn early_init() {
-    writek!("\x1b[0m\n\n");
-
     let memmap_resp = MEMMAP_REQ
         .get_response()
         .expect("Missing Limine memory map response");
@@ -105,7 +102,6 @@ pub unsafe fn early_init() {
     if let Some(fdt) = DTB_REQ.get_response() {
         unsafe {
             let dtb = Dtb::parse(fdt.dtb_ptr() as _);
-            logk!(LogLevel::Debug, "Device tree:\n{:?}", dtb.root());
             dtb::DTB = Some(dtb);
         }
     }

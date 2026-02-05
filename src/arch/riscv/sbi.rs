@@ -379,7 +379,7 @@ pub mod rfence {
 
 /// SBI hart management extension.
 pub mod hsm {
-    use crate::arch::{PhysCpuID, irq};
+    use crate::arch::irq;
 
     use super::*;
     const HSM_EID: isize = 0x48534D;
@@ -417,7 +417,7 @@ pub mod hsm {
     }
 
     /// Start a single HART and set its `a0` register to its HARTID.
-    pub unsafe fn start(hartid: PhysCpuID, start_addr: *const (), a1_value: usize) -> SbiResult {
+    pub unsafe fn start(hartid: usize, start_addr: *const (), a1_value: usize) -> SbiResult {
         sbi_call!(
             0,
             HSM_EID,
@@ -434,7 +434,7 @@ pub mod hsm {
     }
 
     /// Get the status of some HART.
-    pub fn get_status(hartid: PhysCpuID) -> SbiResult<HartState> {
+    pub fn get_status(hartid: usize) -> SbiResult<HartState> {
         sbi_call!(2, HSM_EID, hartid as isize).map(Into::into)
     }
 
