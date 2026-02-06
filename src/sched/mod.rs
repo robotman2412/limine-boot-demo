@@ -2,3 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 pub mod cpulocal;
+pub mod sync;
+
+pub fn thread_yield() {
+    // TODO.
+}

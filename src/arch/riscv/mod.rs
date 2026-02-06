@@ -5,6 +5,7 @@ pub mod cpulocal;
 pub mod csr;
 pub mod exception;
 pub mod irq;
+pub mod mmu;
 pub mod regs;
 pub mod sbi;
 pub mod spinup;

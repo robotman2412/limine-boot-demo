@@ -3,6 +3,7 @@
 
 use core::{
     alloc::AllocError,
+    num::NonZero,
     ops::{Div, Range},
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -26,7 +27,7 @@ pub const MAX_ORDER: u8 = 32;
 
 /// A shared ownership of naturally-aligned block of physical memory.
 pub struct RawMemory {
-    ppn: PPN,
+    ppn: NonZero<PPN>,
 }
 
 impl RawMemory {
@@ -38,28 +39,32 @@ impl RawMemory {
     }
 
     /// Create from physical page number without increasing its refcount.
-    pub unsafe fn from_raw(ppn: PPN) -> Self {
+    pub unsafe fn from_raw(ppn: NonZero<PPN>) -> Self {
         Self { ppn }
     }
 
     /// Create from physical page number and increase its refcount.
-    pub unsafe fn from_raw_ref(ppn: PPN) -> Self {
+    pub unsafe fn from_raw_ref(ppn: NonZero<PPN>) -> Self {
         unsafe {
-            page_meta(ppn).refcount.fetch_add(1, Ordering::Relaxed);
+            page_meta(ppn.into())
+                .refcount
+                .fetch_add(1, Ordering::Relaxed);
         }
         Self { ppn }
     }
 
     /// Get a pointer to this memory in the HHDM.
     pub fn hhdm_ptr(&self) -> *mut () {
-        (self.ppn * PAGE_SIZE + unsafe { HHDM_OFFSET }) as _
+        (PPN::from(self.ppn) * PAGE_SIZE + unsafe { HHDM_OFFSET }) as _
     }
 }
 
 impl Clone for RawMemory {
     fn clone(&self) -> Self {
         unsafe {
-            page_meta(self.ppn).refcount.fetch_add(1, Ordering::Relaxed);
+            page_meta(self.ppn.into())
+                .refcount
+                .fetch_add(1, Ordering::Relaxed);
         }
         Self { ppn: self.ppn }
     }
@@ -68,7 +73,7 @@ impl Clone for RawMemory {
 impl Drop for RawMemory {
     fn drop(&mut self) {
         unsafe {
-            let meta = page_meta(self.ppn);
+            let meta = page_meta(self.ppn.into());
             if meta.refcount.fetch_sub(1, Ordering::Relaxed) == 1 {
                 deallocate(self.ppn, meta.buddy_order);
             }
@@ -209,7 +214,7 @@ pub unsafe fn mark_usable(memory: Range<usize>) {
 }
 
 /// Allocate a block of physical memory.
-pub unsafe fn allocate(order: u8, usage: PageUsage) -> Result<PPN, AllocError> {
+pub unsafe fn allocate(order: u8, usage: PageUsage) -> Result<NonZero<PPN>, AllocError> {
     let ppn = BUDDY_ALLOC
         .lock()
         .allocate(order, usage)
@@ -228,11 +233,12 @@ pub unsafe fn allocate(order: u8, usage: PageUsage) -> Result<PPN, AllocError> {
         }
     }
 
-    Ok(ppn)
+    Ok(unsafe { NonZero::new_unchecked(ppn) })
 }
 
 /// Free a block of physical memory.
-pub unsafe fn deallocate(ppn: PPN, order: u8) {
+pub unsafe fn deallocate(ppn: NonZero<PPN>, order: u8) {
+    let ppn = PPN::from(ppn);
     let meta;
     unsafe {
         meta = page_meta(ppn);

@@ -14,12 +14,14 @@
 #![feature(const_destruct)]
 #![feature(maybe_uninit_array_assume_init)]
 #![feature(ptr_metadata)]
+#![feature(generic_atomic)]
 
 extern crate alloc;
 extern crate core;
 
 pub mod device;
 pub mod init;
+pub mod irq;
 pub mod mem;
 pub mod misc;
 pub mod sched;

@@ -3,6 +3,7 @@
 
 use core::{
     alloc::{GlobalAlloc, Layout},
+    num::NonZero,
     ptr::null_mut,
 };
 
@@ -64,9 +65,9 @@ unsafe impl GlobalAlloc for Heap {
                 ptr as usize,
                 PAGE_SIZE << meta.buddy_order
             );
-            drop(pmm::RawMemory::from_raw(
+            drop(pmm::RawMemory::from_raw(NonZero::new_unchecked(
                 ppn >> meta.buddy_order << meta.buddy_order,
-            ));
+            )));
         } else {
             panic!("Free of non-heap memory 0x{:x}", ptr as usize);
         }

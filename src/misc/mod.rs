@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: MIT
 
 pub mod crt;
+pub mod errno;
 pub mod list;
 pub mod log;
 pub mod panic;
+pub mod time;
 
 #[macro_export]
 macro_rules! array_from_fn {
