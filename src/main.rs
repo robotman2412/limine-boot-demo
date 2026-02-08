@@ -15,6 +15,7 @@
 #![feature(maybe_uninit_array_assume_init)]
 #![feature(ptr_metadata)]
 #![feature(generic_atomic)]
+#![feature(linked_list_cursors)]
 
 extern crate alloc;
 extern crate core;

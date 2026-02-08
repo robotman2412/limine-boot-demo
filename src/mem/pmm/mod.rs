@@ -46,25 +46,35 @@ impl RawMemory {
     /// Create from physical page number and increase its refcount.
     pub unsafe fn from_raw_ref(ppn: NonZero<PPN>) -> Self {
         unsafe {
-            page_meta(ppn.into())
-                .refcount
-                .fetch_add(1, Ordering::Relaxed);
+            let tmp = Self { ppn };
+            tmp.page_meta().refcount.fetch_add(1, Ordering::Relaxed);
+            tmp
         }
-        Self { ppn }
     }
 
     /// Get a pointer to this memory in the HHDM.
     pub fn hhdm_ptr(&self) -> *mut () {
         (PPN::from(self.ppn) * PAGE_SIZE + unsafe { HHDM_OFFSET }) as _
     }
+
+    /// Get the [`PageMeta`] struct at the start of the block this handle describes.
+    pub unsafe fn page_meta(&self) -> &'static mut PageMeta {
+        unsafe {
+            let meta = page_meta(self.ppn.into());
+            let ppn = PPN::from(self.ppn) << meta.buddy_order >> meta.buddy_order;
+            if ppn == self.ppn.into() {
+                meta
+            } else {
+                page_meta(ppn)
+            }
+        }
+    }
 }
 
 impl Clone for RawMemory {
     fn clone(&self) -> Self {
         unsafe {
-            page_meta(self.ppn.into())
-                .refcount
-                .fetch_add(1, Ordering::Relaxed);
+            self.page_meta().refcount.fetch_add(1, Ordering::Relaxed);
         }
         Self { ppn: self.ppn }
     }
@@ -73,7 +83,7 @@ impl Clone for RawMemory {
 impl Drop for RawMemory {
     fn drop(&mut self) {
         unsafe {
-            let meta = page_meta(self.ppn.into());
+            let meta = self.page_meta();
             if meta.refcount.fetch_sub(1, Ordering::Relaxed) == 1 {
                 deallocate(self.ppn, meta.buddy_order);
             }

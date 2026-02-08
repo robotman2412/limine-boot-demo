@@ -5,6 +5,7 @@ EFI_PART_SIZE ?= 4MiB
 ROOT_PART_SIZE ?= 57MiB
 CROSS_COMPILE ?= riscv64-linux-gnu-
 QEMU ?= qemu-system-riscv64
+QEMU_FLAGS ?=
 
 .PHONY: image
 image: sysroot
@@ -22,7 +23,7 @@ gdb:
 
 .PHONY: qemu
 qemu: build/cache/OVMF_RISCV64.fd image
-	$(QEMU) -s \
+	$(QEMU) $(QEMU_FLAGS) -s \
 		-M virt,acpi=off -cpu rv64,sv48=false -smp 1 -m 256M \
 		-device pcie-root-port,bus=pcie.0,id=pcisw0 \
 		-device qemu-xhci,bus=pcisw0 -device usb-kbd \

@@ -21,6 +21,8 @@ pub trait Pager {
     /// Try to acquire a load of the backing object.
     /// The resulting page may be written to by userland if the matching [`Mapping`] is writable.
     fn load(&self, offset: VPN) -> EResult<RawMemory>;
+
+    // TODO: Function to query whether a certain set of protection flags is allowed.
 }
 
 pub type Anon = Arc<RawMemory>;
@@ -37,7 +39,7 @@ struct Mapping {
     /// Handle to the backing object.
     pager: Arc<dyn Pager>,
     /// Mapping of pages that shadow the backing object.
-    amap: Option<Box<AnonMap>>,
+    amap: Option<Arc<AnonMap>>,
 }
 
 impl Mapping {
@@ -62,7 +64,7 @@ impl Memmap {
     pub fn new() -> EResult<Self> {
         let mut pmap = PageTable::new()?;
         unsafe {
-            pmap.copy_higher_half(&kernel_mm());
+            pmap.copy_higher_half(&kernel_mm().pmap);
         }
         Ok(Self {
             pmap,
@@ -80,5 +82,28 @@ impl Memmap {
             }
         }
         false
+    }
+
+    /// Map a new object into this address space.
+    pub fn map(
+        &self,
+        vaddr: Option<usize>,
+        offset: usize,
+        size: usize,
+        object: Arc<dyn Pager>,
+        prot: u32,
+        map: u32,
+    ) -> EResult<()> {
+        todo!()
+    }
+
+    /// Unmap object(s) from this address space.
+    pub fn unmap(&self, vaddr: usize, size: usize) -> EResult<()> {
+        todo!()
+    }
+
+    /// Change the protection flags of mappings.
+    pub fn protect(&self, vaddr: usize, size: usize, prot: u32) -> EResult<()> {
+        todo!()
     }
 }

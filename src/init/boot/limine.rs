@@ -5,7 +5,7 @@ use core::{ptr::addr_eq, usize};
 
 use limine::{
     memory_map::{Entry, EntryType},
-    request::{DeviceTreeBlobRequest, HhdmRequest, MemoryMapRequest},
+    request::{DeviceTreeBlobRequest, ExecutableAddressRequest, HhdmRequest, MemoryMapRequest},
 };
 
 use crate::{
@@ -20,6 +20,8 @@ static HHDM_REQ: HhdmRequest = HhdmRequest::new();
 static MEMMAP_REQ: MemoryMapRequest = MemoryMapRequest::new();
 #[unsafe(link_section = ".requests")]
 static DTB_REQ: DeviceTreeBlobRequest = DeviceTreeBlobRequest::new();
+#[unsafe(link_section = ".requests")]
+static ADDR_REQ: ExecutableAddressRequest = ExecutableAddressRequest::new();
 
 pub unsafe fn early_init() {
     let memmap_resp = MEMMAP_REQ
@@ -28,6 +30,9 @@ pub unsafe fn early_init() {
     let hhdm_resp = HHDM_REQ
         .get_response()
         .expect("Missing Limine HHDM response");
+    let addr_resp = ADDR_REQ
+        .get_response()
+        .expect("Missing Limine kernel physical address respone");
 
     // Initialize physical memory management.
     let mut lowest_paddr = usize::MAX;
@@ -90,12 +95,16 @@ pub unsafe fn early_init() {
         }
         logk!(
             LogLevel::Info,
-            "PMM initialized, total: {} MiB including {} MiB reclaimable",
+            "PMM initialized, {} MiB total of which {} MiB reclaimable",
             pmm::total_memory() / 1024 / 1024,
             reclaimable / 1024 / 1024
         );
 
-        vmm::init();
+        vmm::init(
+            addr_resp.virtual_base() as usize,
+            addr_resp.physical_base() as usize,
+        );
+        logk!(LogLevel::Info, "VMM initialized");
     }
 
     // Read the DTB.
