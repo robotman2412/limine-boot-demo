@@ -6,7 +6,7 @@
 #![feature(formatting_options)]
 
 use core::{
-    fmt::{Display, Formatter, FormattingOptions},
+    fmt::{Display, Formatter, FormattingOptions, Write},
     panic::PanicInfo,
     ptr::null_mut,
 };
@@ -48,6 +48,30 @@ pub static EFI_MEMMAP: EfiMemmapRequest = EfiMemmapRequest::new();
 
 pub static mut FLANTERM_CTX: *mut flanterm_context = null_mut();
 
+struct DebugCon;
+
+impl Write for DebugCon {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        unsafe {
+            for &c in s.as_bytes() {
+                #[cfg(target_arch = "x86_64")]
+                core::arch::asm! {
+                    "out dx, al",
+                    in("dx") 0x3f8_u16,
+                    in("al") c
+                }
+                #[cfg(target_arch = "riscv64")]
+                core::arch::asm! {
+                    "ecall",
+                    inout("a0") c => _,
+                    inout("a7") 1 => _
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 pub fn write(msg: &dyn Display) {
     unsafe {
         if !FLANTERM_CTX.is_null() {
@@ -55,6 +79,9 @@ pub fn write(msg: &dyn Display) {
             let _ = msg.fmt(&mut fmt);
         }
     }
+    let mut con = DebugCon;
+    let mut fmt = Formatter::new(&mut con, FormattingOptions::new());
+    let _ = msg.fmt(&mut fmt);
 }
 
 macro_rules! write {
@@ -65,8 +92,6 @@ macro_rules! write {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn _start() -> ! {
-    assert!(BASE_REVISION.is_supported(), "Base revision not supported");
-
     if let Some(resp) = FRAMEBUFFER.response()
         && let Some(fb) = resp.framebuffers().first()
     {
@@ -128,6 +153,19 @@ pub unsafe extern "C" fn _start() -> ! {
         }
         write!("\x1b[1;1H");
     }
+
+    write!(
+        "Base revision supported: {}\n",
+        if BASE_REVISION.is_supported() {
+            "yes"
+        } else {
+            "no"
+        }
+    );
+    write!(
+        "Actual base revision: {:?}\n",
+        BASE_REVISION.actual_revision()
+    );
 
     fn honored<T: 'static, U>(name: &str, request: &Request<T, U>) {
         write!(
