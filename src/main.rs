@@ -232,6 +232,9 @@ pub unsafe extern "C" fn _start() -> ! {
             resp.exec_usec % 1000000
         );
     }
+    if let Some(resp) = PAGING.response() {
+        write!("Paging mode: {:?}\n", resp.mode);
+    }
     if let Some(resp) = HHDM.response() {
         write!("HHDM offset: 0x{:x}\n", resp.offset);
     }
