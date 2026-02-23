@@ -13,16 +13,7 @@ use core::{
 
 use chrono::DateTime;
 use flantermbindings::flanterm::{flanterm_context, flanterm_fb_init};
-#[cfg(target_arch = "riscv64")]
-use limine_boot::request::BspHartidRequest;
-use limine_boot::{
-    BaseRevision,
-    request::{
-        BootloaderInfoRequest, BootloaderPerformanceRequest, DateAtBootRequest, DtbRequest,
-        ExecutableAddressRequest, FirmwareTypeRequest, FramebufferRequest, HhdmRequest,
-        KeepIommuRequest, MemmapRequest, ModulesRequest, MpRequest, RsdpRequest,
-    },
-};
+use limine_boot::{BaseRevision, request::*};
 
 extern crate core;
 
@@ -31,13 +22,15 @@ pub mod crt;
 
 pub static BASE_REVISION: BaseRevision = BaseRevision::new();
 pub static FRAMEBUFFER: FramebufferRequest = FramebufferRequest::new();
+pub static MEMMAP: MemmapRequest = MemmapRequest::new();
 pub static BOOTLOADER: BootloaderInfoRequest = BootloaderInfoRequest::new();
 pub static FIRMWARE: FirmwareTypeRequest = FirmwareTypeRequest::new();
 pub static DATE: DateAtBootRequest = DateAtBootRequest::new();
 pub static BOOT_TIME: BootloaderPerformanceRequest = BootloaderPerformanceRequest::new();
-pub static MEMMAP: MemmapRequest = MemmapRequest::new();
 pub static HHDM: HhdmRequest = HhdmRequest::new();
 pub static EXEC_ADDR: ExecutableAddressRequest = ExecutableAddressRequest::new();
+pub static EXEC_FILE: ExecutableFileRequest = ExecutableFileRequest::new();
+pub static EXEC_CMDLINE: ExecutableCmdlineRequest = ExecutableCmdlineRequest::new();
 pub static DTB: DtbRequest = DtbRequest::new();
 pub static RSDP: RsdpRequest = RsdpRequest::new();
 pub static MP: MpRequest = MpRequest::new(0);
@@ -46,6 +39,12 @@ pub static BSP_HARTID: BspHartidRequest = BspHartidRequest::new();
 pub static MODULES: ModulesRequest = ModulesRequest::new();
 #[cfg(target_arch = "x86_64")]
 pub static KEEP_IOMMU: KeepIommuRequest = KeepIommuRequest::new();
+pub static STACK: StackSizeRequest = StackSizeRequest::new(65536);
+pub static PAGING: PagingModeRequest = PagingModeRequest::PREFER_MAXIMUM;
+pub static ENTRY: EntryPointRequest = EntryPointRequest::new(_start);
+pub static SMBIOS: SmbiosRequest = SmbiosRequest::new();
+pub static EFI: EfiRequest = EfiRequest::new();
+pub static EFI_MEMMAP: EfiMemmapRequest = EfiMemmapRequest::new();
 
 pub static mut FLANTERM_CTX: *mut flanterm_context = null_mut();
 
@@ -103,6 +102,49 @@ pub unsafe extern "C" fn _start() -> ! {
         }
     }
 
+    if let Some(resp) = MEMMAP.response() {
+        let spaces = "\x1b[80C";
+        write!("{}Memory map:\n", spaces);
+        for &ent in resp.entries() {
+            use limine_boot::memmap::*;
+            write!(
+                "{}{:x}-{:x} {}\n",
+                spaces,
+                ent.base,
+                ent.base + ent.length - 1,
+                match ent.type_ {
+                    MEMMAP_USABLE => "Usable",
+                    MEMMAP_RESERVED => "Reserved",
+                    MEMMAP_ACPI_RECLAIMABLE => "ACPI reclaimable",
+                    MEMMAP_ACPI_NVS => "ACPI NVS",
+                    MEMMAP_BAD_MEMORY => "Bad memory",
+                    MEMMAP_BOOTLOADER_RECLAIMABLE => "Bootloader reclaimable",
+                    MEMMAP_EXECUTABLE_AND_MODULES => "Executable and modules",
+                    MEMMAP_FRAMEBUFFER => "Framebuffer",
+                    MEMMAP_MAPPED_RESERVED => "Mapped reserved",
+                    _ => "?",
+                }
+            );
+        }
+        write!("\x1b[1;1H");
+    }
+
+    fn honored<T: 'static, U>(name: &str, request: &Request<T, U>) {
+        write!(
+            "{} request honored: {}\n",
+            name,
+            if request.response().is_some() {
+                "yes"
+            } else {
+                "no"
+            }
+        );
+    }
+    honored("Entrypoint", &ENTRY);
+    honored("Stack size", &STACK);
+    #[cfg(target_arch = "x86_64")]
+    honored("Keep I/O MMU", &KEEP_IOMMU);
+
     if let Some(resp) = BOOTLOADER.response() {
         write!("Bootloader name: {}\n", resp.name());
         write!("Bootloader version: {}\n", resp.version());
@@ -119,6 +161,20 @@ pub unsafe extern "C" fn _start() -> ! {
                 _ => "?",
             }
         );
+    }
+    if let Some(resp) = EFI.response() {
+        write!("EFI system table: 0x{:x}\n", resp.address as usize);
+    }
+    if let Some(resp) = EFI_MEMMAP.response() {
+        write!("EFI memory map: 0x{:x}\n", resp.memmap().as_ptr() as usize);
+    }
+    if let Some(resp) = SMBIOS.response() {
+        if !resp.entry_32.is_null() {
+            write!("SMBIOS entry (32-bit): 0x{:x}\n", resp.entry_32 as usize);
+        }
+        if !resp.entry_64.is_null() {
+            write!("SMBIOS entry (64-bit): 0x{:x}\n", resp.entry_64 as usize);
+        }
     }
     if let Some(resp) = DATE.response() {
         let unix_seconds = resp.timestamp;
@@ -138,29 +194,6 @@ pub unsafe extern "C" fn _start() -> ! {
             resp.exec_usec % 1000000
         );
     }
-    if let Some(resp) = MEMMAP.response() {
-        write!("Memory map:\n");
-        for &ent in resp.entries() {
-            use limine_boot::memmap::*;
-            write!(
-                "{:x}-{:x} {}\n",
-                ent.base,
-                ent.base + ent.length - 1,
-                match ent.type_ {
-                    MEMMAP_USABLE => "Usable",
-                    MEMMAP_RESERVED => "Reserved",
-                    MEMMAP_ACPI_RECLAIMABLE => "ACPI reclaimable",
-                    MEMMAP_ACPI_NVS => "ACPI NVS",
-                    MEMMAP_BAD_MEMORY => "Bad memory",
-                    MEMMAP_BOOTLOADER_RECLAIMABLE => "Bootloader reclaimable",
-                    MEMMAP_EXECUTABLE_AND_MODULES => "Executable and modules",
-                    MEMMAP_FRAMEBUFFER => "Framebuffer",
-                    MEMMAP_MAPPED_RESERVED => "Mapped reserved",
-                    _ => "?",
-                }
-            );
-        }
-    }
     if let Some(resp) = HHDM.response() {
         write!("HHDM offset: 0x{:x}\n", resp.offset);
     }
@@ -170,6 +203,19 @@ pub unsafe extern "C" fn _start() -> ! {
             resp.virtual_base,
             resp.physical_base
         );
+    }
+    if let Some(resp) = EXEC_FILE.response() {
+        let file = resp.executable_file();
+        write!(
+            "Executable file: {:x}-{:x} {} {}\n",
+            file.data().as_ptr() as usize,
+            file.data().as_ptr() as usize + file.data().len() - 1,
+            file.path(),
+            file.cmdline(),
+        );
+    }
+    if let Some(resp) = EXEC_CMDLINE.response() {
+        write!("Command-line: {}\n", resp.cmdline());
     }
     if let Some(resp) = DTB.response() {
         write!("DTB address: 0x{:x}\n", resp.dtb_ptr as usize);
@@ -204,10 +250,6 @@ pub unsafe extern "C" fn _start() -> ! {
                 module.cmdline(),
             );
         }
-    }
-    #[cfg(target_arch = "x86_64")]
-    if let Some(_) = KEEP_IOMMU.response() {
-        write!("I/O MMU was kept enabled\n");
     }
 
     loop {}
