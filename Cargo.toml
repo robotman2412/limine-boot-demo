@@ -15,4 +15,5 @@ panic = "abort"
 opt-level = 2
 
 [dependencies]
+flantermbindings = "0.1.4"
 limine-boot = { path = "limine-boot" }
