@@ -18,9 +18,9 @@ use limine_boot::request::BspHartidRequest;
 use limine_boot::{
     BaseRevision,
     request::{
-        BootloaderInfoRequest, DateAtBootRequest, DtbRequest, ExecutableAddressRequest,
-        FirmwareTypeRequest, FramebufferRequest, HhdmRequest, KeepIommuRequest, MemmapRequest,
-        ModulesRequest, MpRequest, RsdpRequest,
+        BootloaderInfoRequest, BootloaderPerformanceRequest, DateAtBootRequest, DtbRequest,
+        ExecutableAddressRequest, FirmwareTypeRequest, FramebufferRequest, HhdmRequest,
+        KeepIommuRequest, MemmapRequest, ModulesRequest, MpRequest, RsdpRequest,
     },
 };
 
@@ -34,6 +34,7 @@ pub static FRAMEBUFFER: FramebufferRequest = FramebufferRequest::new();
 pub static BOOTLOADER: BootloaderInfoRequest = BootloaderInfoRequest::new();
 pub static FIRMWARE: FirmwareTypeRequest = FirmwareTypeRequest::new();
 pub static DATE: DateAtBootRequest = DateAtBootRequest::new();
+pub static BOOT_TIME: BootloaderPerformanceRequest = BootloaderPerformanceRequest::new();
 pub static MEMMAP: MemmapRequest = MemmapRequest::new();
 pub static HHDM: HhdmRequest = HhdmRequest::new();
 pub static EXEC_ADDR: ExecutableAddressRequest = ExecutableAddressRequest::new();
@@ -125,6 +126,17 @@ pub unsafe extern "C" fn _start() -> ! {
             .unwrap()
             .naive_utc();
         write!("Date at boot: {}\n", date);
+    }
+    if let Some(resp) = BOOT_TIME.response() {
+        write!(
+            "Boot time: reset {}.{:06}, init {}.{:06}, exec {}.{:06}\n",
+            resp.reset_usec / 1000000,
+            resp.reset_usec % 1000000,
+            resp.init_usec / 1000000,
+            resp.init_usec % 1000000,
+            resp.exec_usec / 1000000,
+            resp.exec_usec % 1000000
+        );
     }
     if let Some(resp) = MEMMAP.response() {
         write!("Memory map:\n");
