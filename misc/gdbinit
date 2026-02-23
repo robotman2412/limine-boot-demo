@@ -1,7 +1,7 @@
 target remote :1234
 
-b positron::init::main
-b positron::misc::panic::finish_panic
+b _start
+b limine_boot_demo::panic_handler
 
 define reset
     mon system_reset

@@ -3,31 +3,37 @@
 
 #![no_std]
 #![no_main]
-#![feature(try_trait_v2)]
-#![feature(unsafe_cell_access)]
-#![feature(linkage)]
-#![feature(macro_metavar_expr_concat)]
-#![feature(formatting_options)]
-#![feature(allocator_api)]
-#![feature(try_blocks)]
-#![feature(const_trait_impl)]
-#![feature(const_destruct)]
-#![feature(maybe_uninit_array_assume_init)]
-#![feature(ptr_metadata)]
-#![feature(generic_atomic)]
-#![feature(linked_list_cursors)]
 
-extern crate alloc;
+use core::panic::PanicInfo;
+
+use limine_boot::{BaseRevision, framebuffer::Framebuffer, request::FramebufferRequest};
+
 extern crate core;
 
-pub mod device;
-pub mod init;
-pub mod irq;
-pub mod mem;
-pub mod misc;
-pub mod sched;
-pub mod sync;
+// Implements the C runtime that Rust depends on.
+pub mod crt;
 
-#[cfg(target_arch = "riscv64")]
-#[path = "arch/riscv/mod.rs"]
-pub mod arch;
+pub static BASE_REVISION: BaseRevision = BaseRevision::new();
+pub static FRAMEBUFFER: FramebufferRequest = FramebufferRequest::new();
+
+pub fn fill_the_framebuffer(fb: &Framebuffer) {
+    unsafe { fb.as_slice_mut() }.fill(0xff);
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn _start() -> ! {
+    assert!(BASE_REVISION.is_supported(), "Base revision not supported");
+
+    if let Some(resp) = FRAMEBUFFER.response() {
+        for &fb in resp.framebuffers() {
+            fill_the_framebuffer(fb);
+        }
+    }
+
+    loop {}
+}
+
+#[panic_handler]
+fn panic_handler(_: &PanicInfo) -> ! {
+    loop {}
+}

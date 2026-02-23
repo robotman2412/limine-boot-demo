@@ -5,7 +5,6 @@
 
 use core::ffi::c_int;
 
-#[linkage = "weak"]
 #[inline(never)]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn strlen(str: *const u8) -> usize {
@@ -16,7 +15,6 @@ pub unsafe extern "C" fn strlen(str: *const u8) -> usize {
     cur.offset_from_unsigned(str)
 }
 
-#[linkage = "weak"]
 #[inline(never)]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn memset(dest: *mut u8, val: c_int, size: usize) -> *mut u8 {
@@ -27,7 +25,6 @@ pub unsafe extern "C" fn memset(dest: *mut u8, val: c_int, size: usize) -> *mut 
     dest
 }
 
-#[linkage = "weak"]
 #[inline(never)]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn memcmp(a: *const i8, b: *const i8, size: usize) -> c_int {
@@ -41,14 +38,12 @@ pub unsafe extern "C" fn memcmp(a: *const i8, b: *const i8, size: usize) -> c_in
     0
 }
 
-#[linkage = "weak"]
 #[inline(never)]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn memcpy(dest: *mut u8, src: *const u8, size: usize) -> *mut u8 {
     memmove(dest, src, size)
 }
 
-#[linkage = "weak"]
 #[inline(never)]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn memmove(dest: *mut u8, src: *const u8, size: usize) -> *mut u8 {

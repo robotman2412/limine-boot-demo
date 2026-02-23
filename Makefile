@@ -2,45 +2,31 @@
 # SPDX-License-Identifier: MIT
 
 EFI_PART_SIZE ?= 4MiB
-ROOT_PART_SIZE ?= 57MiB
-CROSS_COMPILE ?= riscv64-linux-gnu-
-QEMU ?= qemu-system-riscv64
+CROSS_COMPILE ?= 
+QEMU ?= qemu-system-x86_64
 QEMU_FLAGS ?=
 
 .PHONY: image
 image: sysroot
 	mkdir -p build/image
 	./scripts/make_fatfs.sh $(EFI_PART_SIZE) build/efiroot build/image/efi.fatfs
-	./scripts/make_e2fs.sh $(ROOT_PART_SIZE) build/sysroot build/image/root.e2fs
 	./scripts/make_image.sh \
 		build/image.hdd \
-		'EFI partition'  boot build/image/efi.fatfs 0x0700 \
-		'Root partition' root build/image/root.e2fs 0x8300
+		'EFI partition'  boot build/image/efi.fatfs 0x0700
+
+.PHONY: qemu
+qemu: edk2-ovmf image
+	$(QEMU) $(QEMU_FLAGS) -s \
+		-drive if=pflash,unit=0,format=raw,file=edk2-ovmf/ovmf-code-x86_64.fd \
+		-drive format=raw,file=build/image.hdd,cache=none \
+	| scripts/address-filter.py -L -A $(CROSS_COMPILE)addr2line target/x86_64-unknown-none/debug/limine-boot-demo
+
+edk2-ovmf:
+	curl -L https://github.com/osdev0/edk2-ovmf-nightly/releases/latest/download/edk2-ovmf.tar.gz | gunzip | tar -xf -
 
 .PHONY: gdb
 gdb:
-	$(CROSS_COMPILE)gdb -x misc/gdbinit target/kernel_riscv64/debug/positron
-
-.PHONY: qemu
-qemu: build/cache/OVMF_RISCV64.fd image
-	$(QEMU) $(QEMU_FLAGS) -s \
-		-M virt,acpi=off -cpu rv64,sv48=false -smp 1 -m 256M \
-		-device pcie-root-port,bus=pcie.0,id=pcisw0 \
-		-device qemu-xhci,bus=pcisw0 -device usb-kbd \
-		-drive if=pflash,unit=0,format=raw,file=build/cache/OVMF_RISCV64.fd \
-		-drive if=none,id=hd0,format=raw,file=build/image.hdd,cache=none \
-		-device ahci,id=achi0 \
-		-device ide-hd,drive=hd0,bus=achi0.0 \
-		-serial mon:stdio -nographic \
-	| scripts/address-filter.py -L -A $(CROSS_COMPILE)addr2line target/kernel_riscv64/debug/positron
-
-build/cache/OVMF_RISCV64.fd:
-	mkdir -p build/cache
-	test -f build/cache/OVMF_RISCV64.fd || ( \
-		cd build/cache \
-		&& curl -o OVMF_RISCV64.fd https://retrage.github.io/edk2-nightly/bin/RELEASERISCV64_VIRT_CODE.fd \
-		&& dd if=/dev/zero of=OVMF_RISCV64.fd bs=1 count=0 seek=33554432 \
-	)
+	$(CROSS_COMPILE)gdb -x misc/gdbinit target/x86_64-unknown-none/debug/limine-boot-demo
 
 .PHONY: sysroot
 sysroot: kernel
@@ -49,19 +35,10 @@ sysroot: kernel
 	mkdir -p build/efiroot/boot
 	
 	# Copy the bootloader, modules and kernel into the EFI root
-	cp limine/BOOTRISCV64.EFI limine/LICENSE build/efiroot/EFI/BOOT/
+	cp limine/BOOTX64.EFI limine/LICENSE build/efiroot/EFI/BOOT/
 	cp misc/limine.conf build/efiroot/boot/
-	cp target/kernel_riscv64/debug/positron build/efiroot/boot/
-	$(CROSS_COMPILE)strip -s -g build/efiroot/boot/positron
-	
-	# System root folders
-	mkdir -p build/sysroot/boot
-	mkdir -p build/sysroot/dev
-	mkdir -p build/sysroot/tmp
-	mkdir -p build/sysroot/mnt
-	
-	# Copy some dummy things into the system root
-	echo "This is a text file, ok." > build/sysroot/test.txt
+	cp target/x86_64-unknown-none/debug/limine-boot-demo build/efiroot/boot/
+	$(CROSS_COMPILE)strip -s -g build/efiroot/boot/limine-boot-demo
 
 .PHONY: kernel
 kernel:

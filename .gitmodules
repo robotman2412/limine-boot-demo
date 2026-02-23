@@ -1,3 +1,6 @@
 [submodule "limine"]
 	path = limine
 	url = https://codeberg.org/Limine/Limine.git
+[submodule "limine-boot"]
+	path = limine-boot
+	url = https://robotman2412@github.com/robotman2412/limine-boot-rust

@@ -1,5 +1,5 @@
-OUTPUT_FORMAT(elf64-littleriscv)
-OUTPUT_ARCH(riscv)
+OUTPUT_FORMAT(elf64-x86-64)
+OUTPUT_ARCH(i386:x86-64)
 
 ENTRY(_start)
 
@@ -14,15 +14,10 @@ PHDRS
 SECTIONS
 {
     . = 0xffffffff80000000;
-    __start_positron_kernel = .;
 
     __start_text = .;
     . = ALIGN(256);
-    .interrupt_vector_table : {
-        *(.interrupt_vector_table)
-    } :text
     .text : {
-        *(.text.riscv_exception_asm)
         *(.text .text.*)
     } :text
     . = ALIGN(4096);
@@ -32,9 +27,6 @@ SECTIONS
     .rodata : {
         *(.rodata .rodata.* .srodata .srodata.*)
         . = ALIGN(16);
-        __start_noexc = .;
-        KEEP(*(.noexc_table .noexc_table.*))
-        __stop_noexc = .;
     } :rodata
     .dynstr : { *(.dynstr) } :rodata
     .dynsym : { *(.dynsym) } :rodata
@@ -52,20 +44,16 @@ SECTIONS
         KEEP(*(.requests))
         KEEP(*(.requests_end))
         *(.data .data.*)
-        *(.sdata .sdata.*)
     } :data
     PROVIDE(__global_pointer$ = .);
 
     /* Add zero-initialized memory last to avoid padding. */
     .bss : {
-        *(.sbss .sbss.*)
         *(.bss .bss.*)
         *(COMMON)
     } :data
     . = ALIGN(4096);
     __stop_data = .;
-
-    __stop_positron_kernel = .;
 
     /* Discard useless sections. */
     /DISCARD/ : {
