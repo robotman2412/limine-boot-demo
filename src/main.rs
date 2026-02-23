@@ -6,18 +6,21 @@
 #![feature(formatting_options)]
 
 use core::{
-    fmt::{Display, Formatter, FormattingOptions, Write},
+    fmt::{Display, Formatter, FormattingOptions},
     panic::PanicInfo,
     ptr::null_mut,
 };
 
+use chrono::DateTime;
 use flantermbindings::flanterm::{flanterm_context, flanterm_fb_init};
+#[cfg(target_arch = "riscv64")]
+use limine_boot::request::BspHartidRequest;
 use limine_boot::{
     BaseRevision,
-    framebuffer::Framebuffer,
     request::{
-        BootloaderInfoRequest, DtbRequest, ExecutableAddressRequest, FramebufferRequest,
-        HhdmRequest, MemmapRequest, RsdpRequest,
+        BootloaderInfoRequest, DateAtBootRequest, DtbRequest, ExecutableAddressRequest,
+        FirmwareTypeRequest, FramebufferRequest, HhdmRequest, KeepIommuRequest, MemmapRequest,
+        ModulesRequest, MpRequest, RsdpRequest,
     },
 };
 
@@ -29,11 +32,19 @@ pub mod crt;
 pub static BASE_REVISION: BaseRevision = BaseRevision::new();
 pub static FRAMEBUFFER: FramebufferRequest = FramebufferRequest::new();
 pub static BOOTLOADER: BootloaderInfoRequest = BootloaderInfoRequest::new();
+pub static FIRMWARE: FirmwareTypeRequest = FirmwareTypeRequest::new();
+pub static DATE: DateAtBootRequest = DateAtBootRequest::new();
 pub static MEMMAP: MemmapRequest = MemmapRequest::new();
 pub static HHDM: HhdmRequest = HhdmRequest::new();
 pub static EXEC_ADDR: ExecutableAddressRequest = ExecutableAddressRequest::new();
 pub static DTB: DtbRequest = DtbRequest::new();
 pub static RSDP: RsdpRequest = RsdpRequest::new();
+pub static MP: MpRequest = MpRequest::new(0);
+#[cfg(target_arch = "riscv64")]
+pub static BSP_HARTID: BspHartidRequest = BspHartidRequest::new();
+pub static MODULES: ModulesRequest = ModulesRequest::new();
+#[cfg(target_arch = "x86_64")]
+pub static KEEP_IOMMU: KeepIommuRequest = KeepIommuRequest::new();
 
 pub static mut FLANTERM_CTX: *mut flanterm_context = null_mut();
 
@@ -95,6 +106,26 @@ pub unsafe extern "C" fn _start() -> ! {
         write!("Bootloader name: {}\n", resp.name());
         write!("Bootloader version: {}\n", resp.version());
     }
+    if let Some(resp) = FIRMWARE.response() {
+        use limine_boot::firmware::*;
+        write!(
+            "Firmware type: {}\n",
+            match resp.firmware_type {
+                FIRMWARE_TYPE_X86BIOS => "BIOS",
+                FIRMWARE_TYPE_EFI32 => "EFI (32-bit)",
+                FIRMWARE_TYPE_EFI64 => "EFI (64-bit)",
+                FIRMWARE_TYPE_SBI => "SBI",
+                _ => "?",
+            }
+        );
+    }
+    if let Some(resp) = DATE.response() {
+        let unix_seconds = resp.timestamp;
+        let date = DateTime::from_timestamp(unix_seconds, 0)
+            .unwrap()
+            .naive_utc();
+        write!("Date at boot: {}\n", date);
+    }
     if let Some(resp) = MEMMAP.response() {
         write!("Memory map:\n");
         for &ent in resp.entries() {
@@ -133,6 +164,38 @@ pub unsafe extern "C" fn _start() -> ! {
     }
     if let Some(resp) = RSDP.response() {
         write!("RSDP address: 0x{:x}\n", resp.address as usize);
+    }
+    if let Some(resp) = MP.response() {
+        write!(
+            "Multiprocessing supported, core count: {}\n",
+            resp.cpus().len()
+        );
+    }
+    #[cfg(target_arch = "riscv64")]
+    if let Some(resp) = BSP_HARTID.response() {
+        write!("BSP hartid: 0x{:x}\n", resp.bsp_hartid);
+    }
+    if let Some(resp) = MODULES.response() {
+        let modules = resp.modules();
+        write!(
+            "{} module{} loaded{}\n",
+            modules.len(),
+            if modules.len() == 1 { "" } else { "s" },
+            if modules.len() == 0 { "" } else { ":" }
+        );
+        for module in modules {
+            write!(
+                "{:x}-{:x} {} {}\n",
+                module.data().as_ptr() as usize,
+                module.data().as_ptr() as usize + module.data().len() - 1,
+                module.path(),
+                module.cmdline(),
+            );
+        }
+    }
+    #[cfg(target_arch = "x86_64")]
+    if let Some(_) = KEEP_IOMMU.response() {
+        write!("I/O MMU was kept enabled\n");
     }
 
     loop {}
