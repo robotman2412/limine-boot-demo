@@ -13,38 +13,69 @@ use core::{
 
 use chrono::DateTime;
 use flantermbindings::flanterm::{flanterm_context, flanterm_fb_init};
-use limine_boot::{BaseRevision, request::*};
+use limine::{BaseRevision, RequestsEndMarker, RequestsStartMarker, request::*};
 
 extern crate core;
 
 // Implements the C runtime that Rust depends on.
 pub mod crt;
 
+#[used]
+#[unsafe(link_section = ".requests_start")]
+pub static REQUESTS_START: RequestsStartMarker = RequestsStartMarker::new();
+
+#[unsafe(link_section = ".requests")]
 pub static BASE_REVISION: BaseRevision = BaseRevision::new();
+#[unsafe(link_section = ".requests")]
 pub static FRAMEBUFFER: FramebufferRequest = FramebufferRequest::new();
+#[unsafe(link_section = ".requests")]
 pub static MEMMAP: MemmapRequest = MemmapRequest::new();
+#[unsafe(link_section = ".requests")]
 pub static BOOTLOADER: BootloaderInfoRequest = BootloaderInfoRequest::new();
+#[unsafe(link_section = ".requests")]
 pub static FIRMWARE: FirmwareTypeRequest = FirmwareTypeRequest::new();
+#[unsafe(link_section = ".requests")]
 pub static DATE: DateAtBootRequest = DateAtBootRequest::new();
+#[unsafe(link_section = ".requests")]
 pub static BOOT_TIME: BootloaderPerformanceRequest = BootloaderPerformanceRequest::new();
+#[unsafe(link_section = ".requests")]
 pub static HHDM: HhdmRequest = HhdmRequest::new();
+#[unsafe(link_section = ".requests")]
 pub static EXEC_ADDR: ExecutableAddressRequest = ExecutableAddressRequest::new();
+#[unsafe(link_section = ".requests")]
 pub static EXEC_FILE: ExecutableFileRequest = ExecutableFileRequest::new();
+#[unsafe(link_section = ".requests")]
 pub static EXEC_CMDLINE: ExecutableCmdlineRequest = ExecutableCmdlineRequest::new();
+#[unsafe(link_section = ".requests")]
 pub static DTB: DtbRequest = DtbRequest::new();
+#[unsafe(link_section = ".requests")]
 pub static RSDP: RsdpRequest = RsdpRequest::new();
+#[unsafe(link_section = ".requests")]
 pub static MP: MpRequest = MpRequest::new(0);
 #[cfg(target_arch = "riscv64")]
+#[unsafe(link_section = ".requests")]
 pub static BSP_HARTID: BspHartidRequest = BspHartidRequest::new();
+#[unsafe(link_section = ".requests")]
 pub static MODULES: ModulesRequest = ModulesRequest::new();
 #[cfg(target_arch = "x86_64")]
+#[unsafe(link_section = ".requests")]
 pub static KEEP_IOMMU: KeepIommuRequest = KeepIommuRequest::new();
+#[unsafe(link_section = ".requests")]
 pub static STACK: StackSizeRequest = StackSizeRequest::new(65536);
+#[unsafe(link_section = ".requests")]
 pub static PAGING: PagingModeRequest = PagingModeRequest::PREFER_MAXIMUM;
+#[unsafe(link_section = ".requests")]
 pub static ENTRY: EntryPointRequest = EntryPointRequest::new(_start);
+#[unsafe(link_section = ".requests")]
 pub static SMBIOS: SmbiosRequest = SmbiosRequest::new();
+#[unsafe(link_section = ".requests")]
 pub static EFI: EfiRequest = EfiRequest::new();
+#[unsafe(link_section = ".requests")]
 pub static EFI_MEMMAP: EfiMemmapRequest = EfiMemmapRequest::new();
+
+#[used]
+#[unsafe(link_section = ".requests_end")]
+pub static REQUESTS_END: RequestsEndMarker = RequestsEndMarker::new();
 
 pub static mut FLANTERM_CTX: *mut flanterm_context = null_mut();
 
@@ -131,7 +162,7 @@ pub unsafe extern "C" fn _start() -> ! {
         let spaces = "\x1b[80C";
         write!("{}Memory map:\n", spaces);
         for &ent in resp.entries() {
-            use limine_boot::memmap::*;
+            use limine::memmap::*;
             write!(
                 "{}{:x}-{:x} {}\n",
                 spaces,
@@ -188,7 +219,7 @@ pub unsafe extern "C" fn _start() -> ! {
         write!("Bootloader version: {}\n", resp.version());
     }
     if let Some(resp) = FIRMWARE.response() {
-        use limine_boot::firmware::*;
+        use limine::firmware::*;
         write!(
             "Firmware type: {}\n",
             match resp.firmware_type {

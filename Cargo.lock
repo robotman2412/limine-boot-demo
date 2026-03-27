@@ -142,8 +142,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "limine-boot"
-version = "0.6.0"
+name = "limine"
+version = "0.6.3"
 
 [[package]]
 name = "limine-boot-demo"
@@ -151,7 +151,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "flantermbindings",
- "limine-boot",
+ "limine",
 ]
 
 [[package]]
